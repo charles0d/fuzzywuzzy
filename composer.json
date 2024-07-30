@@ -1,9 +1,13 @@
 {
-    "name": "wyndow/fuzzywuzzy",
-    "description": "Fuzzy string matching based on FuzzyWuzzy from Seatgeek",
+    "name": "charles0d/fuzzywuzzy",
+    "description": "Fork from Fuzzy string matching based on FuzzyWuzzy from Seatgeek",
     "type": "library",
     "license": "MIT",
     "authors": [
+      {
+        "name": "Charles Dutertre",
+        "email": "charles.dutertre@clickandboat.com"
+      },
       {
         "name": "Michael Crumm",
         "email": "mike@crumm.net"
