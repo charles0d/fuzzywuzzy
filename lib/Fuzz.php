@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace FuzzyWuzzy;
 
 /**
@@ -14,17 +16,9 @@ class Fuzz
 {
     /**
      * Returns a basic ratio score between the two strings.
-     *
-     * @param string $s1
-     * @param string $s2
-     *
-     * @return integer
      */
-    public function ratio($s1, $s2)
+    public function ratio(string $s1, string $s2): int
     {
-        if (null === $s1) { throw new \UnexpectedValueException('s1 is null'); }
-        if (null === $s2) { throw new \UnexpectedValueException('s2 is null'); }
-
         if (strlen($s1) === 0 || strlen($s2) === 0) {
             return 0;
         }
@@ -35,19 +29,10 @@ class Fuzz
     }
 
     /**
-     *
      * @todo Skip duplicate indexes for a little more speed.
-     *
-     * @param string $s1
-     * @param string $s2
-     *
-     * @return int
      */
-    public function partialRatio($s1, $s2)
+    public function partialRatio(string $s1, string $s2): int
     {
-        if (null === $s1) { throw new \UnexpectedValueException('s1 is null'); }
-        if (null === $s2) { throw new \UnexpectedValueException('s2 is null'); }
-
         if (strlen($s1) === 0 || strlen($s2) === 0) {
             return 0;
         }
@@ -62,6 +47,7 @@ class Fuzz
 
         $m = new Diff\SequenceMatcher($shorter, $longer);
 
+        /** @var array<array{int, int, int}> $blocks */
         $blocks = $m->getMatchingBlocks();
         $scores = [ ];
 
@@ -80,19 +66,18 @@ class Fuzz
             }
         }
 
+        if(empty($scores)){
+            return 0;
+        }
+
         return Utils::intr(100 * max($scores));
     }
 
     /**
      * Returns a measure of the sequences' similarity between 0 and 100,
      * using different algorithms.
-     *
-     * @param string $s1
-     * @param string $s2
-     * @param boolean $forceAscii
-     * @return integer
      */
-    public function weightedRatio($s1, $s2, $forceAscii = true)
+    public function weightedRatio(string $s1, string $s2, bool $forceAscii = true): int
     {
         $p1 = Utils::fullProcess($s1, $forceAscii);
         $p2 = Utils::fullProcess($s2, $forceAscii);
@@ -117,7 +102,7 @@ class Fuzz
             $try_partial = false;
         }
 
-        # if one string is much much shorter than the other
+        # if one string is much shorter than the other
         if ($len_ratio > 8) {
             $partial_scale = .6;
         }
@@ -136,46 +121,22 @@ class Fuzz
         return (int) max($base, $tsor, $tser);
     }
 
-    /**
-     * @param $s1
-     * @param $s2
-     * @param bool $forceAscii
-     * @return int|mixed
-     */
-    public function tokenSetPartialRatio($s1, $s2, $forceAscii = true)
+    public function tokenSetPartialRatio(string $s1, string $s2, bool $forceAscii = true): int
     {
         return $this->tokenSet($s1, $s2, true, $forceAscii);
     }
 
-    /**
-     * @param $s1
-     * @param $s2
-     * @param bool $forceAscii
-     * @return int|mixed
-     */
-    public function tokenSetRatio($s1, $s2, $forceAscii = true)
+    public function tokenSetRatio(string $s1, string $s2, bool $forceAscii = true): int
     {
         return $this->tokenSet($s1, $s2, false, $forceAscii);
     }
 
-    /**
-     * @param $s1
-     * @param $s2
-     * @param bool $forceAscii
-     * @return int
-     */
-    public function tokenSortPartialRatio($s1, $s2, $forceAscii = true)
+    public function tokenSortPartialRatio(string $s1, string $s2, bool $forceAscii = true): int
     {
         return $this->tokenSort($s1, $s2, true, $forceAscii);
     }
 
-    /**
-     * @param $s1
-     * @param $s2
-     * @param bool $forceAscii
-     * @return int
-     */
-    public function tokenSortRatio($s1, $s2, $forceAscii = true)
+    public function tokenSortRatio(string $s1, string $s2, bool $forceAscii = true): int
     {
         return $this->tokenSort($s1, $s2, false, $forceAscii);
     }
@@ -187,18 +148,9 @@ class Fuzz
      * - construct two strings of the form: <sorted_intersection><sorted_remainder>
      * - take ratios of those two strings
      * - controls for unordered partial matches
-     *
-     * @param $s1
-     * @param $s2
-     * @param bool $partial
-     * @param bool $forceAscii
-     * @return int|mixed
      */
-    private function tokenSet($s1, $s2, $partial = true, $forceAscii = true)
+    private function tokenSet(string $s1,string $s2, bool $partial = true, bool $forceAscii = true): int
     {
-        if (null === $s1) { throw new \UnexpectedValueException('s1 is null'); }
-        if (null === $s2) { throw new \UnexpectedValueException('s2 is null'); }
-
         $p1 = Utils::fullProcess($s1, $forceAscii);
         $p2 = Utils::fullProcess($s2, $forceAscii);
 
@@ -229,7 +181,7 @@ class Fuzz
         $combined_1to2 = trim($combined_1to2);
         $combined_2to1 = trim($combined_2to1);
 
-        $ratioFunc = (boolean) $partial ? 'partialRatio' : 'ratio';
+        $ratioFunc = $partial ? 'partialRatio' : 'ratio';
 
         $pairwise = [
             call_user_func([$this, $ratioFunc], $sorted_sect, $combined_1to2),
@@ -240,34 +192,19 @@ class Fuzz
         return max($pairwise);
     }
 
-    /**
-     * @param $s1
-     * @param $s2
-     * @param bool $partial
-     * @param bool $forceAscii
-     * @return int
-     */
-    private function tokenSort($s1, $s2, $partial = true, $forceAscii = true)
+    private function tokenSort(string $s1, string $s2, bool $partial = true, bool $forceAscii = true): int
     {
-        if (null === $s1) { throw new \UnexpectedValueException('s1 is null'); }
-        if (null === $s2) { throw new \UnexpectedValueException('s2 is null'); }
-
         $sorted1 = $this->processAndSort($s1, $forceAscii);
         $sorted2 = $this->processAndSort($s2, $forceAscii);
 
-        if ((boolean) $partial) {
+        if ($partial) {
             return $this->partialRatio($sorted1, $sorted2);
         }
 
         return $this->ratio($sorted1, $sorted2);
     }
 
-    /**
-     * @param string  $str
-     * @param boolean $forceAscii
-     * @return string
-     */
-    private function processAndSort($str, $forceAscii = true)
+    private function processAndSort(string $str, bool $forceAscii = true): string
     {
         $tokens = StringProcessor::split(Utils::fullProcess($str, $forceAscii));
 

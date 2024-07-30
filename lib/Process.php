@@ -1,22 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
 namespace FuzzyWuzzy;
+
+use Closure;
+use Traversable;
 
 class Process
 {
-    /** @var Fuzz */
-    private $fuzz;
+    private Fuzz $fuzz;
 
-    /** @var \Closure */
-    private $getString;
+    private Closure $getString;
 
-    /** @var \Closure */
-    private $getScore;
+    private Closure $getScore;
 
-    /**
-     * @param Fuzz $fuzz
-     */
-    public function __construct(Fuzz $fuzz = null)
+    public function __construct(?Fuzz $fuzz = null)
     {
         $this->fuzz = $fuzz ?: new Fuzz();
 
@@ -27,26 +26,29 @@ class Process
     /**
      * Returns a Collection of matches for query, from a list of choices.
      *
-     * @param string             $query     Query string.
-     * @param array|\Traversable $choices   List of choices to match against.
-     * @param \Closure           $processor Processing function (Default: {@link Utils::fullProcess}.
-     * @param \Closure           $scorer    Scoring function (Default: {@link Fuzz::weightedRatio}).
-     * @param integer            $limit     Limits the number of returned matches (Default: 5).
+     * @param string $query Query string.
+     * @param string[]|Traversable $choices List of choices to match against.
+     * @param Closure|null $processor Processing function (Default: {@link Utils::fullProcess}.
+     * @param Closure|null $scorer Scoring function (Default: {@link Fuzz::weightedRatio}).
+     * @param integer $limit Limits the number of returned matches (Default: 5).
      * @return Collection
      */
-    public function extract($query, $choices = [ ], $processor = null, $scorer = null, $limit = 5)
+    public function extract(string $query, iterable $choices = [ ], ?Closure $processor = null, ?Closure $scorer = null, int $limit = 5): Collection
     {
         $choices = Collection::coerce($choices);
 
+        /** @var Collection<array{string, int}> $scored */
+        $scored = new Collection();
+
         if ($choices->isEmpty()) { return $choices; }
 
-        $processor = $processor ?: function ($str) { return Utils::fullProcess($str); };
-        $scorer    = $scorer    ?: function ($s1, $s2) { return $this->fuzz->weightedRatio($s1, $s2); };
+        $processor = $processor ?: function (string $str): string {
+            return Utils::fullProcess($str);
+        };
 
-        if (!is_callable($processor)) { throw new \InvalidArgumentException('processor is not callable.'); }
-        if (!is_callable($scorer))    { throw new \InvalidArgumentException('scorer is not callable.'); }
-
-        $scored = new Collection();
+        $scorer    = $scorer    ?: function (string $s1, string $s2): int {
+            return $this->fuzz->weightedRatio($s1, $s2);
+        };
 
         foreach ($choices as $choice) {
             $processed = $processor($choice);
@@ -64,15 +66,15 @@ class Process
     /**
      * Returns a Collection of best matches to a collection of choices.
      *
-     * @param string             $query     Query string.
-     * @param array|\Traversable $choices   List of choices to match against.
-     * @param \Closure           $processor Processing function (Default: {@link Utils::fullProcess}.
-     * @param \Closure           $scorer    Scoring function (Default: {@link Fuzz::weightedRatio}).
-     * @param integer            $cutoff    Score cutoff for returned matches.
-     * @param integer            $limit     Limits the number of returned matches (Default: 5).
+     * @param string $query Query string.
+     * @param string[]|Traversable $choices List of choices to match against.
+     * @param Closure|null $processor Processing function (Default: {@link Utils::fullProcess}.
+     * @param Closure|null $scorer Scoring function (Default: {@link Fuzz::weightedRatio}).
+     * @param integer $cutoff Score cutoff for returned matches.
+     * @param integer $limit Limits the number of returned matches (Default: 5).
      * @return Collection
      */
-    public function extractBests($query, $choices = [ ], $processor = null, $scorer = null, $cutoff = 0, $limit = 5)
+    public function extractBests(string $query, iterable $choices = [ ], ?Closure $processor = null, ?Closure $scorer = null, int $cutoff = 0, int $limit = 5): Collection
     {
         $bestList = $this->extract($query, $choices, $processor, $scorer, $limit);
         return $bestList->filter(function ($x) use ($cutoff) { return $x[1] >= $cutoff; });
@@ -81,42 +83,57 @@ class Process
     /**
      * Returns the best match for query from a collection of choices.
      *
-     * @param string             $query     Query string.
-     * @param array|\Traversable $choices   List of choices to match against.
-     * @param \Closure           $processor Processing function (Default: {@link Utils::fullProcess}.
-     * @param \Closure           $scorer    Scoring function (Default: {@link Fuzz::weightedRatio}).
-     * @param integer            $cutoff    Score cutoff for returned matches.
-     * @return array
+     * @param string $query Query string.
+     * @param array $choices List of choices to match against.
+     * @param null $processor Processing function (Default: {@link Utils::fullProcess}.
+     * @param null $scorer Scoring function (Default: {@link Fuzz::weightedRatio}).
+     * @param integer $cutoff Score cutoff for returned matches.
+     * @return array|null
      */
-    public function extractOne($query, $choices = [ ], $processor = null, $scorer = null, $cutoff = 0)
+    public function extractOne(string $query, $choices = [ ], $processor = null, $scorer = null, $cutoff = 0): ?array
     {
         $bestList = $this->extract($query, $choices, $processor, $scorer, 1);
-        return !$bestList->isEmpty() && $bestList[0][1] > $cutoff ? $bestList[0] : null;
+
+        if ($bestList->isEmpty()) {
+            return null;
+        }
+
+        if ($bestList[0] === null) {
+            return null;
+        }
+
+        return $bestList[0][1] > $cutoff ? $bestList[0] : null;
     }
 
     /**
      * Returns a Collection that has been filtered for duplicates using fuzzy matching.
      *
-     * @param array|\Traversable $containsDupes List containing duplicate strings.
-     * @param integer            $threshold     Match threshold.
-     * @param \Closure           $scorer        Scoring function.
+     * @param string[]|Traversable $containsDupes List containing duplicate strings.
+     * @param integer $threshold Match threshold.
+     * @param Closure|null $scorer Scoring function.
      * @return Collection
      */
-    public function dedupe($containsDupes = [ ], $threshold = 70, $scorer = null)
+    public function dedupe(iterable $containsDupes = [ ],int  $threshold = 70, ?Closure $scorer = null): Collection
     {
         $containsDupes = Collection::coerce($containsDupes);
-        $scorer        = $scorer ?: function ($s1, $s2) { return $this->fuzz->tokenSetRatio($s1, $s2); };
-        $extractor     = [ ];
+        $scorer        = $scorer ?: function (string $s1, string $s2): int { return $this->fuzz->tokenSetRatio($s1, $s2); };
+        $extractor     = new Collection();
 
         # iterate over containsDupes
         foreach ($containsDupes as $item) {
             # return all duplicate matches found
-            $matches  = $this->extract($item, $containsDupes, null, $scorer, null);
+            $matches  = $this->extract($item, $containsDupes, null, $scorer);
+
             # filter matches based on threshold
-            $filtered = $matches->filter(function ($x) use ($threshold) { return $x[1] > $threshold; });
+            $filtered = $matches->filter(function (array $x) use ($threshold) { return $x[1] > $threshold; });
+
             # if there is only 1 item in *filtered*, no duplicates were found, so append to *extracted*
             if ($filtered->count() === 1) {
-                $extractor[] = $filtered[0][0];
+                $item = $filtered[0];
+
+                if(!empty($item)) {
+                    $extractor[] = $item[0];
+                }
             } else {
                 # sort length DESC, score DESC, alpha ASC
                 $filtered = $filtered->multiSort(
@@ -125,16 +142,20 @@ class Process
                     $filtered->map($this->getString)->toArray(), SORT_ASC, SORT_STRING | SORT_FLAG_CASE
                 );
 
-                $extractor[] = $filtered[0][0];
+                $item = $filtered[0];
+
+                if(!empty($item)) {
+                    $extractor[] = $item[0];
+                }
             }
         }
 
         # "uniquify" *extractor* list
-        $keys = [ ];
+        $keys = [];
         foreach ($extractor as $e) {
-            $keys[$e] = 1;
+            $keys[$e] = true;
         }
 
-        return count($extractor) === count($containsDupes) ? $containsDupes : $extractor;
+        return count($keys) === count($containsDupes) ? $containsDupes : $extractor;
     }
 }

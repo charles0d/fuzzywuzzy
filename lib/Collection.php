@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace FuzzyWuzzy;
 
 /**
@@ -27,26 +29,20 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable
      *
      * @param mixed $element Elements can be of any type.
      */
-    public function add($element)
+    public function add(mixed $element): void
     {
         $this->elements[] = $element;
     }
 
     /**
      * Returns true if the given elements exists in this collection.
-     *
-     * @param mixed $element
-     * @return boolean
      */
-    public function contains($element)
+    public function contains(mixed $element): bool
     {
         return in_array($element, $this->elements, true);
     }
 
-    /**
-     * @return int
-     */
-    public function count()
+    public function count(): int
     {
         return count($this->elements);
     }
@@ -59,47 +55,33 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable
      * @throws \InvalidArgumentException When $cmp is not a valid for
      * difference.
      */
-    public function difference($cmp)
+    public function difference(iterable $cmp):self
     {
-        return new static(array_diff($this->elements, static::coerce($cmp)->toArray()));
+        return new self(array_diff($this->elements, self::coerce($cmp)->toArray()));
     }
 
-    /**
-     * @param callable $p
-     * @return static
-     */
-    public function filter(\Closure $p)
+    public function filter(\Closure $p):self
     {
-        return new static(array_filter($this->elements, $p));
+        return new self(array_filter($this->elements, $p));
     }
 
-    /**
-     * @return \ArrayIterator
-     */
-    public function getIterator()
+    public function getIterator(): \ArrayIterator
     {
         return new \ArrayIterator($this->elements);
     }
 
     /**
      * Returns the set intersection of this Collection and another comparable.
-     *
-     * @param array|\Traversable $cmp Value to compare against.
-     * @return static
-     * @throws \InvalidArgumentException When $cmp is not a valid for
-     * intersection.
      */
-    public function intersection($cmp)
+    public function intersection(iterable $cmp): self
     {
-        return new static(array_intersect($this->elements, static::coerce($cmp)->toArray()));
+        return new self(array_intersect($this->elements, self::coerce($cmp)->toArray()));
     }
 
     /**
-     * Checks whether or not this collection is empty.
-     *
-     * @return boolean
+     * Checks whether this collection is empty or not.
      */
-    public function isEmpty()
+    public function isEmpty(): bool
     {
         return empty($this->elements);
     }
@@ -108,13 +90,12 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable
      * Returns a string containing all elements of this collection with a
      * glue string.
      *
-     * @param string $glue
      * @return string A string representation of all the array elements in the
      * same order, with the glue string between each element.
      */
-    public function join($glue = ' ')
+    public function join(string $glue = ' '): string
     {
-        return implode((string) $glue, $this->elements);
+        return implode($glue, $this->elements);
     }
 
     /**
@@ -122,22 +103,20 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable
      * the predicate function onto each element in this collection.
      *
      * @param \Closure $p Predicate function.
-     * @return static
      */
-    public function map(\Closure $p)
+    public function map(\Closure $p): self
     {
-        return new static(array_map($p, $this->elements));
+        return new self(array_map($p, $this->elements));
     }
 
     /**
      * Apply a multisort to this collection of elements.
      *
      * @param mixed $arg [optional]
-     * @param mixed $arg [optional]
      * @param mixed $_ [optional]
      * @return static
      */
-    public function multiSort()
+    public function multiSort(mixed ...$args): self
     {
         if (func_num_args() < 1) { throw new \LogicException('multiSort requires at least one argument.'); }
 
@@ -147,23 +126,22 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable
 
         call_user_func_array('array_multisort', $args);
 
-        return new static($elements);
+        return new self($elements);
     }
 
     /**
-     * @param mixed $offset
-     * @return bool
+     * @param int $offset
      */
-    public function offsetExists($offset)
+    public function offsetExists(mixed $offset): bool
     {
         return isset ($this->elements[$offset]);
     }
 
     /**
-     * @param mixed $offset
-     * @return mixed
+     * @param int $offset
+     * @return mixed|null
      */
-    public function offsetGet($offset)
+    public function offsetGet(mixed $offset): mixed
     {
         return isset ($this->elements[$offset]) ? $this->elements[$offset] : null;
     }
@@ -172,7 +150,7 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable
      * @param mixed $offset
      * @param mixed $value
      */
-    public function offsetSet($offset, $value)
+    public function offsetSet(mixed $offset, mixed $value): void
     {
         if (!is_null($offset)) {
             $this->elements[$offset] = $value;
@@ -182,32 +160,27 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable
         $this->elements[] = $value;
     }
 
-    /**
-     * @param mixed $offset
-     */
-    public function offsetUnset($offset)
+    public function offsetUnset(mixed $offset): void
     {
         unset($this->elements[$offset]);
     }
 
     /**
      * Returns a new collection with the elements of this collection, reversed.
-     *
-     * @return static
      */
-    public function reverse()
+    public function reverse(): self
     {
         return new static(array_reverse($this->elements));
     }
 
     /**
-     * @param $offset
-     * @param null $length
-     * @return static
+     * @param int $offset
+     * @param int|null $length
+     * @return self
      */
-    public function slice($offset, $length = null)
+    public function slice(int $offset, ?int $length = null): self
     {
-        return new static(array_slice($this->elements, $offset, $length, true));
+        return new self(array_slice($this->elements, $offset, $length, true));
     }
 
     /**
@@ -215,13 +188,13 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable
      *
      * @return static
      */
-    public function sort()
+    public function sort(): self
     {
         $sorted = $this->elements;
 
         sort($sorted);
 
-        return new static($sorted);
+        return new self($sorted);
     }
 
     /**
@@ -229,31 +202,19 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable
      *
      * @return array
      */
-    public function toArray()
+    public function toArray(): array
     {
         return $this->elements;
     }
 
-    /**
-     * Coerce an array-like value into a Collection.
-     *
-     * @param array|\Traversable $elements    Value to compare against.
-     * @return Collection
-     * @throws \InvalidArgumentException When $cmp is not an array or Traversable.
-     */
-    public static function coerce($elements)
+    public static function coerce(iterable $elements): self
     {
         if ($elements instanceof Collection) {
             return $elements;
         } elseif ($elements instanceof \Traversable) {
             $elements = iterator_to_array($elements);
-        } elseif (!is_array($elements)) {
-            throw new \InvalidArgumentException(sprintf(
-                'coerce requires an array or \Traversable, %s given.',
-                is_object($elements) ? get_class($elements) : gettype($elements)
-            ));
         }
 
-        return new static($elements);
+        return new self($elements);
     }
 }
